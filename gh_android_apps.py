@@ -28,7 +28,7 @@ SUB_COMMANDS = [
     'mirror_empty_repos',
     'consolidate_data',
     'store_repo_data',
-    'store_in_neo4j',
+    'prepare_neo4j_import',
     'play_category',
     ]
 

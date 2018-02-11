@@ -15,7 +15,7 @@ from typing import Dict, IO, Iterable, Iterator, List
 from gitlab import Gitlab, GitlabGetError
 from gitlab.v4.objects import Project
 
-from util.bare_git import BareGit
+from util.bare_git import BareGit, GitHistory
 from util.parse import parse_iso8601
 
 
@@ -54,43 +54,6 @@ def iter_branches(gitlab_project: Project) -> Iterator[str]:
         yield {
             'commit_hash': branch.commit['id'],
             'branch_name': branch.name,
-            }
-
-
-def iter_commits(gitlab_project: Project) -> Iterator[str]:
-    """Iterator over commit meta-data in a Gitlab project.
-
-    :param gitlab.v4.object.Project gitlab_project:
-        Gitlab project to retrieve commits from.
-    :returns Iterator[str]:
-        An iterator over commit data to store in CSV file.
-    """
-    for commit in gitlab_project.commits.list(all=True, as_list=False):
-        attr = commit.attributes
-        stats = attr.get('stats', {})
-        if 'authored_date' in attr:
-            authored = parse_iso8601(attr.get('authored_date'))
-        else:
-            authored = None
-        if 'committed_date' in attr:
-            committed = parse_iso8601(attr.get('committed_date'))
-        else:
-            committed = None
-        yield {
-            'id': attr.get('id'),
-            'short_id': attr.get('short_id'),
-            'title': attr.get('title'),
-            'message': attr.get('message'),
-            'additions': stats.get('additions'),
-            'deletions': stats.get('deletions'),
-            'total': stats.get('total'),
-            'author_email': attr.get('author_email'),
-            'author_name': attr.get('author_name'),
-            'committer_email': attr.get('committer_email'),
-            'committer_name': attr.get('committer_name'),
-            'authored_date': authored,
-            'committed_date': committed,
-            'parent_ids': ','.join(attr.get('parent_ids')),
             }
 
 
@@ -170,7 +133,7 @@ def find_maven_config_paths(
 
 def iter_implementation_properties(
         project: Project, packages: List[str],
-        gitlab_repo_prefix: str) -> Iterator[Dict[str, str]]:
+        git: BareGit) -> Iterator[Dict[str, str]]:
     """Iterator over package with paths found in project.
 
     Find Android manifest files and build system files for app in the
@@ -186,10 +149,6 @@ def iter_implementation_properties(
     :returns Iterator[Dict[str, str]]:
         Iterator over dictionary with paths as comma separated lists.
     """
-    repository_path = os.path.join(
-        gitlab_repo_prefix, '{}.git'.format(project.path))
-    __log__.info('Use local git repository at %s', repository_path)
-    git = BareGit(repository_path)
     for package in packages:
         manifest = find_manifest_paths(package, project.default_branch, git)
         gradle = find_gradle_config_paths(package, project.default_branch, git)
@@ -245,6 +204,11 @@ def store_repository_info(csv_file: IO[str], gitlab: Gitlab, outdir: str):
             __log__.error('%s\n%s', error, error.response_body)
             continue
 
+        repository_path = os.path.join(
+            gitlab.repository_prefix, '{}.git'.format(project.path))
+        __log__.info('Use local git repository at %s', repository_path)
+        git = GitHistory(repository_path)
+
         write_csv(
             repo_dir, 'snapshot.csv',
             ['web_url', 'created_at'],
@@ -258,7 +222,7 @@ def store_repository_info(csv_file: IO[str], gitlab: Gitlab, outdir: str):
                 'committer_name', 'committer_email', 'authored_date',
                 'committed_date', 'parent_ids'
             ],
-            iter_commits(project))
+            git.iter_commits())
 
         write_csv(
             repo_dir, 'branches.csv',
@@ -276,8 +240,7 @@ def store_repository_info(csv_file: IO[str], gitlab: Gitlab, outdir: str):
                 'package', 'manifestPaths', 'gradleConfigPaths',
                 'mavenConfigPaths'
             ],
-            iter_implementation_properties(
-                project, packages, gitlab.repository_prefix))
+            iter_implementation_properties(project, packages, git))
 
 
 def define_cmdline_arguments(parser: argparse.ArgumentParser):

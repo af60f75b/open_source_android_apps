@@ -50,8 +50,7 @@ listed in [doc/node-properties.md](doc/node-properties.md)
 
 We published Docker images for the
 [Neo4j graph database](https://hub.docker.com/r/af60f75b/neo4j_open_source_android_apps)
-and the Gitlab instance (TBA; the total size of 136 GB is too large for Docker
-Hub)).
+and [the Gitlab instance.](https://github.com/af60f75b/neo4j_open_source_android_apps#git-repositories-gitlab)
 
 
 ## Installation
@@ -104,7 +103,7 @@ This is the full help output with descriptions of all subcommands.
 
 ```
 usage: gh_android_apps.py [-h] [--log LOG] [-v] [-q]
-                          {verify_play_link,get_play_data,get_repo_data,match_packages,get_gradle_files,add_gradle_info,clone,draw_commits,mirror_empty_repos,consolidate_data,store_repo_data,store_in_neo4j,play_category}
+                          {verify_play_link,get_play_data,get_repo_data,match_packages,get_gradle_files,add_gradle_info,clone,draw_commits,mirror_empty_repos,consolidate_data,store_repo_data,prepare_neo4j_import,play_category}
                           ...
 
 Collect data on Android apps on Github.
@@ -119,7 +118,7 @@ This script executes several of the interdependent steps as sub-commands. Use
 the --help option on a sub-command to learn more about it.
 
 positional arguments:
-  {verify_play_link,get_play_data,get_repo_data,match_packages,get_gradle_files,add_gradle_info,clone,draw_commits,mirror_empty_repos,consolidate_data,store_repo_data,store_in_neo4j,play_category}
+  {verify_play_link,get_play_data,get_repo_data,match_packages,get_gradle_files,add_gradle_info,clone,draw_commits,mirror_empty_repos,consolidate_data,store_repo_data,prepare_neo4j_import,play_category}
     verify_play_link    Filter out package names not available in Google Play.
                         For each package name in input, check if package name
                         is available in Google Play. If so, print package name
@@ -179,8 +178,8 @@ positional arguments:
                         access to Gitlab is not available. Temporarily store
                         all data in CSV files. Use -h or --help for more
                         information.
-    store_in_neo4j      Store information in Neo4j graph database. Use -h or
-                        --help for more information.
+    prepare_neo4j_import
+                        Create CSV files used for Neo4j import.
     play_category       Scrape Google Play category data from Google Play.
 
 optional arguments:
@@ -540,34 +539,22 @@ optional arguments:
                         http://145.108.225.21
 ```
 
-### Importing metadata into Neo4j
+### Formatting data for import in Neo4j
+
+Neo4j has an [import tool which reads CSV data](http://neo4j.com/docs/operations-manual/current/tools/import/).
+This subcommand outputs all data in the format for that tool.
 
 ```
-usage: gh_android_apps.py store_in_neo4j [-h] [--neo4j-host NEO4J_HOST]
-                                         [--neo4j-port NEO4J_PORT]
-                                         PLAY_STORE_DETAILS_DIR
-                                         REPO_DETAILS_DIR REPOSITORY_LIST
+usage: gh_android_apps.py prepare_neo4j_import [-h] input_dir output_dir
 
-Store information in Neo4j graph database.
-
-Use -h or --help for more information.
+Create CSV files used for Neo4j import.
 
 positional arguments:
-  PLAY_STORE_DETAILS_DIR
-                        Directory containing JSON files with details from
-                        Google Play.
-  REPO_DETAILS_DIR      Directory containing CSV files with details from
-                        repositories.
-  REPOSITORY_LIST       CSV file that lists meta data for repositories and
-                        their snapshots on Gitlab.
+  input_dir   Directory containing CSV and JSON files to convert.
+  output_dir  Directory to store Neo4j import files in.
 
 optional arguments:
-  -h, --help            show this help message and exit
-  --neo4j-host NEO4J_HOST
-                        Hostname Neo4j instance is running on. Default:
-                        bolt://localhost
-  --neo4j-port NEO4J_PORT
-                        Port number of Neo4j instance. Default: 7687
+  -h, --help  show this help message and exit
 ```
 
 ### Scraping category information from Google Play
